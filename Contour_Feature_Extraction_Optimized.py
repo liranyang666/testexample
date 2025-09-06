@@ -42,14 +42,24 @@ def _compute_basic_descriptors(contour: np.ndarray, image: np.ndarray):
 	hist_dist = _normalize_array(hist_dist.astype(np.float32))
 	hist_angle = _normalize_array(hist_angle.astype(np.float32))
 
-	# Compose placeholders to match expected tuple sizes in caller
-	norm_v = np.stack([
-		_normalize_array(distances)[:128].reshape(-1, 1) if distances.size else np.zeros((128, 1), dtype=np.float32),
-		np.pad(hist_dist, (0, max(0, 128 - hist_dist.size)))[:128].reshape(-1, 1),
-		np.pad(hist_angle, (0, max(0, 128 - hist_angle.size)))[:128].reshape(-1, 1),
-		np.zeros((128,), dtype=np.float32),
-		np.zeros((128,), dtype=np.float32),
-		np.zeros((128,), dtype=np.float32),
+	# Ensure 128 rows for each column
+	def _pad_to_len(vec: np.ndarray, target: int) -> np.ndarray:
+		if vec.size >= target:
+			return vec[:target]
+		return np.pad(vec, (0, target - vec.size))
+
+	dist_col = _pad_to_len(_normalize_array(distances).astype(np.float32), 128).reshape(-1, 1)
+	hist_dist_col = _pad_to_len(hist_dist, 128).reshape(-1, 1)
+	hist_angle_col = _pad_to_len(hist_angle, 128).reshape(-1, 1)
+	zeros_col = np.zeros((128, 1), dtype=np.float32)
+
+	norm_v = np.concatenate([
+		dist_col,
+		hist_dist_col,
+		hist_angle_col,
+		zeros_col,
+		zeros_col,
+		zeros_col,
 	], axis=1)
 
 	norm_vc = norm_v.copy()

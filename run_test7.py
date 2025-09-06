@@ -29,13 +29,23 @@ def normalize(Narray):
 	return (Narray - np.min(Narray)) / (np.max(Narray) - np.min(Narray))
 
 
-def process_contour_features_and_match(frame1, frame2):
+def _find_contours_compat(binary_image):
+	res = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+	if len(res) == 3:
+		_, contours, hierarchy = res
+	else:
+		contours, hierarchy = res
+	return contours, hierarchy
+
+
+def process_contour_features_and_match(frame1, frame2, file_index):
 	"""
 	处理两帧图像的轮廓特征提取和点点匹配
 
 	参数:
 		frame1: 第一帧图像
 		frame2: 第二帧图像
+		file_index: 保存结果文件索引
 
 	返回:
 		success: 是否成功处理
@@ -50,8 +60,8 @@ def process_contour_features_and_match(frame1, frame2):
 			gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 			edges = cv2.Canny(gray, 50, 150)
 
-			# 寻找轮廓
-			contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+			# 寻找轮廓（兼容不同 OpenCV 版本）
+			contours, _ = _find_contours_compat(edges)
 
 			if len(contours) == 0:
 				print(f"[WARNING] 帧{i} 未检测到轮廓")
@@ -92,7 +102,7 @@ def process_contour_features_and_match(frame1, frame2):
 			norm_v1, norm_vc1, norm_vc1n, norm_vg1,  # 前帧特征
 			sample_c1, sample_c2,  # 前后帧轮廓
 			norm_v2, norm_vc2, norm_vc2n, norm_vg2,  # 后帧特征
-			height, width, 0,  # 图像尺寸和文件索引
+			height, width, file_index,  # 图像尺寸和文件索引
 			frame1, frame2  # 原始图像
 		)
 
@@ -178,13 +188,13 @@ def main():
 			if prev_frame is not None:
 				try:
 					# 使用轮廓特征提取和点点匹配
-					success, result_info = process_contour_features_and_match(prev_frame, frame)
+					success, result_info = process_contour_features_and_match(prev_frame, frame, processed_pairs)
 
 					if success:
-						processed_pairs += 1
-						print(f"[INFO] 第 {processed_pairs} 对帧匹配完成")
+						print(f"[INFO] 第 {processed_pairs + 1} 对帧匹配完成")
 						print(f"[INFO] 前帧超点数量: {result_info['prior_super_points']}")
 						print(f"[INFO] 匹配点数量: {result_info['matched_points']}")
+						processed_pairs += 1
 					else:
 						print(f"[WARNING] 第 {k} 帧匹配失败: {result_info.get('error', '未知错误')}")
 				except Exception as e:
